@@ -1,0 +1,320 @@
+<!DOCTYPE html><html lang="pt-BR"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Checker by: Kqzm_</title>
+    <style>
+        body {
+            background-image: url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTzxvgvAtPqbvt9uaEpdEiPtpcJ4wRfc4mrPA&s');
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-size: cover;
+            font-family: 'Arial', sans-serif;
+            color: #ffffff;
+        }
+
+        #container {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 600px;
+            margin: 50px auto;
+            text-align: center;
+        }
+
+        h2 {
+            margin-top: 0;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+            font-size: 2.5em;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            resize: none;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            font-size: 1em;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        #results {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .result-item {
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ddd;
+            color: #000;
+        }
+
+        .result-item.valid {
+            color: green;
+        }
+
+        .result-item.invalid {
+            color: red;
+        }
+
+        .result-item.error {
+            color: orange;
+        }
+
+        .plan-info {
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        #summary {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        #loading {
+            display: none;
+            margin-top: 10px;
+        }
+
+        #downloadBtn {
+            display: none;
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        #downloadBtn:hover {
+            background-color: #0056b3;
+        }
+
+        #proxyToggleBtn {
+            width: 100%;
+            padding: 12px;
+            background-color: #ffc107;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        #proxyToggleBtn:hover {
+            background-color: #e0a800;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h2>Link Checker</h2>
+        <form id="linkForm">
+            <textarea id="linksInput" placeholder="Insira os links de promoção do Discord aqui, um por linha..."></textarea>
+            <button type="submit">Verificar Links</button>
+        </form>
+        <button id="proxyToggleBtn" onclick="toggleProxy()">Ativar Proxy (não estar funcionando⚠️⚠️)</button>
+        <div id="loading">Verificando links, por favor aguarde...</div>
+        <div id="results"></div>
+        <div id="summary"></div>
+        <button id="downloadBtn" onclick="downloadValidLinks()">Baixar Links Válidos</button>
+    </div>
+
+    <script>
+        const TOKENS = [
+            'MTE5ODE5OTk7MzM2ODU3ODE0OA.G2-_CW.-xfTpWGx-ujcpK83P4Q2AYD2-XAKsc5QNo5DHo',
+            'MTI2NjM5NTQ5MjMwMTAxNzExOA.GkrpKg.jQRc_3FvGFSrhJsf87JxuihjiAkP9zfYO-5KjI'
+        ];
+        const PROXY_URL = 'http://20.206.106.192:8123';
+        let useProxy = false;
+        let validLinks = [];
+
+        function getToken() {
+            const token = TOKENS.shift();
+            TOKENS.push(token);
+            return token;
+        }
+
+        function toggleProxy() {
+            useProxy = !useProxy;
+            const proxyToggleBtn = document.getElementById('proxyToggleBtn');
+            if (useProxy) {
+                proxyToggleBtn.textContent = 'Desativar Proxy';
+                proxyToggleBtn.style.backgroundColor = '#dc3545';
+                proxyToggleBtn.style.color = '#ffffff';
+                proxyToggleBtn.onmouseover = () => { proxyToggleBtn.style.backgroundColor = '#c82333'; };
+            } else {
+                proxyToggleBtn.textContent = 'Ativar Proxy';
+                proxyToggleBtn.style.backgroundColor = '#ffc107';
+                proxyToggleBtn.style.color = '#ffffff';
+                proxyToggleBtn.onmouseover = () => { proxyToggleBtn.style.backgroundColor = '#e0a800'; };
+            }
+        }
+
+        async function checkLink(link) {
+            const apiUrl = `https://discord.com/api/v9/entitlements/gift-codes/${link.split('/').pop()}?with_application=false&with_subscription_plan=true`;
+            const token = getToken();
+
+            const options = {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            };
+
+            const finalUrl = useProxy ? PROXY_URL : apiUrl;
+            const fetchOptions = useProxy ? {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    url: apiUrl,
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                })
+            } : options;
+
+            try {
+                const response = await fetch(finalUrl, fetchOptions);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    let validity = '';
+
+                    if (!data.redeemed && data.uses === 0) {
+                        const now = new Date();
+                        const expiresAt = new Date(data.expires_at);
+
+                        if (expiresAt > now) {
+                            validity = 'válido, expira em ' + expiresAt.toLocaleString();
+                        } else {
+                            validity = 'válido, mas expirou em ' + expiresAt.toLocaleString();
+                        }
+                    } else {
+                        validity = 'inválido';
+                    }
+
+                    let planInfo = '';
+                    if (data.subscription_plan) {
+                        const planLength = data.subscription_plan.interval_count;
+                        if (planLength === 1) {
+                            planInfo = 'Plano mensal';
+                        } else if (planLength === 3) {
+                            planInfo = 'Plano trimestral';
+                        } else {
+                            planInfo = 'Plano desconhecido';
+                        }
+                    } else {
+                        planInfo = 'Plano desconhecido';
+                    }
+
+                    return { validity, planInfo };
+                } else {
+                    return { validity: 'inválido', planInfo: 'Plano desconhecido' };
+                }
+            } catch (error) {
+                console.error('Erro ao verificar o link:', error);
+                return { validity: 'erro na verificação', planInfo: 'Plano desconhecido' };
+            }
+        }
+
+        document.getElementById('linkForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const linksInput = document.getElementById('linksInput');
+            const results = document.getElementById('results');
+            const summary = document.getElementById('summary');
+            const loading = document.getElementById('loading');
+            const downloadBtn = document.getElementById('downloadBtn');
+            results.innerHTML = '';
+            summary.innerHTML = '';
+            validLinks = [];
+
+            const links = linksInput.value.match(/https:\/\/(?:discord\.com\/billing\/promotions|promos\.discord\.gg)\/[^\s]+/g) || [];
+          if (links.length === 0) {
+                results.innerHTML = '<p>Nenhum link de promoção do Discord encontrado.</p>';
+                return;
+            }
+
+            loading.style.display = 'block';
+            let validCount = 0;
+            let invalidCount = 0;
+            let errorCount = 0;
+
+            for (const link of links) {
+                const { validity, planInfo } = await checkLink(link);
+                let statusClass = '';
+                if (validity.startsWith('válido')) {
+                    validCount++;
+                    validLinks.push(link);
+                    statusClass = 'valid';
+                } else if (validity === 'inválido') {
+                    invalidCount++;
+                    statusClass = 'invalid';
+                } else {
+                    errorCount++;
+                    statusClass = 'error';
+                }
+
+                const item = document.createElement('div');
+                item.classList.add('result-item', statusClass);
+                item.innerHTML = `${link} - ${validity}<br><span class="plan-info">${planInfo}</span>`;
+                results.appendChild(item);
+            }
+
+            loading.style.display = 'none';
+            summary.innerHTML = `Total de links válidos: ${validCount}<br>Total de links inválidos: ${invalidCount}<br>Total de erros na verificação: ${errorCount}`;
+
+            if (validLinks.length > 0) {
+                downloadBtn.style.display = 'block';
+            } else {
+                downloadBtn.style.display = 'none';
+            }
+        });
+
+        function downloadValidLinks() {
+            const blob = new Blob([validLinks.join('\n')], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'validos.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    </script>
+
+
+</body></html>
